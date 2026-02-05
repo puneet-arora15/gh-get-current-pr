@@ -274,7 +274,18 @@ function main() {
         try {
             const { token, sha, filterOutClosed, filterOutDraft } = (0, get_inputs_1.default)();
             const octokit = github.getOctokit(token);
-            const allPRs = yield (0, get_prs_associated_with_commit_1.default)(octokit, sha);
+            // Check if we're in a pull_request or pull_request_target event
+            // If so, use the PR from context directly as it's more reliable
+            let allPRs = [];
+            if (github.context.payload.pull_request) {
+                core.info('Using PR from GitHub event context');
+                allPRs = [github.context.payload.pull_request];
+            }
+            else {
+                // Fall back to API query for other events (e.g., push)
+                core.info('Querying API for PRs associated with commit');
+                allPRs = yield (0, get_prs_associated_with_commit_1.default)(octokit, sha);
+            }
             const pr = (0, get_last_pr_1.default)(allPRs, {
                 draft: !filterOutDraft,
                 closed: !filterOutClosed,
