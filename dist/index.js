@@ -270,19 +270,23 @@ const get_last_pr_1 = __importDefault(__nccwpck_require__(6835));
 const get_prs_associated_with_commit_1 = __importDefault(__nccwpck_require__(5890));
 const set_output_1 = __importDefault(__nccwpck_require__(3741));
 function main() {
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const { token, sha, filterOutClosed, filterOutDraft } = (0, get_inputs_1.default)();
             const octokit = github.getOctokit(token);
             // Check if we're in a pull_request or pull_request_target event
-            // If so, use the PR from context directly as it's more reliable
+            // AND the SHA matches the PR head SHA (user didn't override it)
             let allPRs = [];
-            if (github.context.payload.pull_request) {
+            const prFromContext = github.context.payload.pull_request;
+            const prHeadSha = (_a = prFromContext === null || prFromContext === void 0 ? void 0 : prFromContext.head) === null || _a === void 0 ? void 0 : _a.sha;
+            if (prFromContext && (!sha || sha === prHeadSha || sha === github.context.sha)) {
+                // Use PR from context - it's reliable and works for fork PRs
                 core.info('Using PR from GitHub event context');
-                allPRs = [github.context.payload.pull_request];
+                allPRs = [prFromContext];
             }
             else {
-                // Fall back to API query for other events (e.g., push)
+                // Fall back to API query for other events or when SHA is explicitly different
                 core.info('Querying API for PRs associated with commit');
                 allPRs = yield (0, get_prs_associated_with_commit_1.default)(octokit, sha);
             }

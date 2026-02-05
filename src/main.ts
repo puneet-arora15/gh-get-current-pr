@@ -13,13 +13,17 @@ async function main(): Promise<void> {
     const octokit = github.getOctokit(token)
     
     // Check if we're in a pull_request or pull_request_target event
-    // If so, use the PR from context directly as it's more reliable
+    // AND the SHA matches the PR head SHA (user didn't override it)
     let allPRs: PR[] = []
-    if (github.context.payload.pull_request) {
+    const prFromContext = github.context.payload.pull_request as PR | undefined
+    const prHeadSha = prFromContext?.head?.sha
+    
+    if (prFromContext && (!sha || sha === prHeadSha || sha === github.context.sha)) {
+      // Use PR from context - it's reliable and works for fork PRs
       core.info('Using PR from GitHub event context')
-      allPRs = [github.context.payload.pull_request as PR]
+      allPRs = [prFromContext]
     } else {
-      // Fall back to API query for other events (e.g., push)
+      // Fall back to API query for other events or when SHA is explicitly different
       core.info('Querying API for PRs associated with commit')
       allPRs = await getPRsAssociatedWithCommit(octokit, sha)
     }
