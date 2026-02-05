@@ -4,13 +4,19 @@ import getInputs from './io/get-inputs'
 import getLastPullRequest from './get-last-pr'
 import getPRsAssociatedWithCommit from './adapter/get-prs-associated-with-commit'
 import setOutput from './io/set-output'
+import {PR} from './types/pull-request'
 
 async function main(): Promise<void> {
   try {
     const {token, sha, filterOutClosed, filterOutDraft} = getInputs()
 
     const octokit = github.getOctokit(token)
-    const allPRs = await getPRsAssociatedWithCommit(octokit, sha)
+    
+    // For PR events, use the PR from context (works with forks)
+    // Otherwise query the API
+    const allPRs: PR[] = github.context.payload.pull_request
+      ? [github.context.payload.pull_request as PR]
+      : await getPRsAssociatedWithCommit(octokit, sha)
 
     const pr = getLastPullRequest(allPRs, {
       draft: !filterOutDraft,

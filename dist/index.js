@@ -42,19 +42,10 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const github = __importStar(__nccwpck_require__(5438));
 const core = __importStar(__nccwpck_require__(2186));
 function getPullRequestsAssociatedWithCommits(octokit, sha) {
-    var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
-        const triggeredFromPR = github.context.eventName === 'pull_request' ||
-            github.context.eventName === 'pull_request_target';
-        const owner = triggeredFromPR
-            ? (_a = github.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.head.repo.owner.login
-            : github.context.repo.owner;
-        const repo = triggeredFromPR
-            ? (_b = github.context.payload.pull_request) === null || _b === void 0 ? void 0 : _b.head.repo.name
-            : github.context.repo.repo;
         const result = yield octokit.rest.repos.listPullRequestsAssociatedWithCommit({
-            owner,
-            repo,
+            owner: github.context.repo.owner,
+            repo: github.context.repo.repo,
             commit_sha: sha
         });
         core.debug(`Used url to fetch associated PRs: ${result.url}`);
@@ -283,7 +274,11 @@ function main() {
         try {
             const { token, sha, filterOutClosed, filterOutDraft } = (0, get_inputs_1.default)();
             const octokit = github.getOctokit(token);
-            const allPRs = yield (0, get_prs_associated_with_commit_1.default)(octokit, sha);
+            // For PR events, use the PR from context (works with forks)
+            // Otherwise query the API
+            const allPRs = github.context.payload.pull_request
+                ? [github.context.payload.pull_request]
+                : yield (0, get_prs_associated_with_commit_1.default)(octokit, sha);
             const pr = (0, get_last_pr_1.default)(allPRs, {
                 draft: !filterOutDraft,
                 closed: !filterOutClosed,
